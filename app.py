@@ -32,14 +32,6 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
-try:
-    import shap
-    SHAP_AVAILABLE = True
-except ImportError:
-    SHAP_AVAILABLE = False
-
-
 class AutoMLClassifier:
     DEFAULT_PARAMS = {
         RandomForestClassifier: {
@@ -83,8 +75,7 @@ class AutoMLClassifier:
     }
 
     def __init__(self, models=None, test_size=0.2, max_cardinality=50,
-                 max_correlation=0.95, random_state=42, n_iter=20, handle_imbalance=False,cv_folds=5,
-                 feature_engineering=None,shap_enabled=False):
+                 max_correlation=0.95, random_state=42, n_iter=20, handle_imbalance=False, cv_folds=5):
         self.random_state = random_state
         self.test_size = test_size
         self.models = models or [
@@ -107,8 +98,6 @@ class AutoMLClassifier:
         self.max_correlation = max_correlation
         self.handle_imbalance = handle_imbalance
         self.cv_folds = cv_folds
-        self.feature_engineering = feature_engineering or {}
-        self.shap_enabled = shap_enabled
 
     def _feature_analysis(self, X, y):
         self.feature_report = {
@@ -193,15 +182,6 @@ class AutoMLClassifier:
             'categorical': categorical_features
         }
 
-        feature_union = []
-        if self.feature_engineering.get('polynomial'):
-            feature_union.append(('poly', PolynomialFeatures(degree=2, include_bias=False)))
-        if self.feature_engineering.get('pca'):
-            feature_union.append(('pca', PCA(n_components=0.95)))
-
-        if feature_union:
-            full_pipeline = FeatureUnion(feature_union)
-            preprocessor.steps.append(('feature_engineering', full_pipeline))
         return preprocessor
 
     def hyperparameter_tuning(self, X_train, y_train, model, param_distributions):
@@ -294,85 +274,62 @@ class AutoMLClassifier:
         if self.results[self.best_model]['roc_curve']:
             self._plot_roc_curve()
 
-    def explain_with_shap(self, model, X_train, X_test):
-        if not SHAP_AVAILABLE or not self.shap_enabled:
-            return
-        try:
-            preprocessor = model.named_steps['preprocessor']
-            classifier = model.named_steps['classifier']
-            X_train_processed = preprocessor.transform(X_train)
-            X_test_processed = preprocessor.transform(X_test)
-
-            explainer = shap.Explainer(classifier, X_train_processed)
-            shap_values = explainer(X_test_processed)
-
-            st.subheader("SHAP Explanation")
-            fig, ax = plt.subplots()
-            shap.summary_plot(shap_values, X_test_processed,
-                              feature_names=preprocessor.get_feature_names_out(),
-                              show=False)
-            st.pyplot(fig)
-
-            st.write("SHAP Values DataFrame:")
-            shap_df = pd.DataFrame(shap_values.values[:, :, 1].mean(0),
-                                   index=preprocessor.get_feature_names_out(),
-                                   columns=['SHAP Value'])
-            st.dataframe(shap_df.sort_values('SHAP Value', ascending=False))
-        except Exception as e:
-            st.warning(f"SHAP explanation failed: {str(e)}")
-
     def _plot_roc_curve(self):
         roc_data = self.results[self.best_model]['roc_curve']
         if isinstance(roc_data, tuple) and len(roc_data) == 3:
             if isinstance(roc_data[0], dict):
-                fig, ax = plt.subplots()
+                fig = px.line(title='Multiclass ROC Curves')
+                avg_auc = 0
                 for i in roc_data[2]:
-                    RocCurveDisplay(fpr=roc_data[0][i], tpr=roc_data[1][i],
-                                    roc_auc=roc_data[2][i], estimator_name=f'Class {i}').plot(ax)
-                plt.plot([0, 1], [0, 1], 'k--')
-                plt.title('Multiclass ROC Curves')
-                st.pyplot(fig)
-                avg_auc = np.mean(list(roc_data[2].values()))
+                    avg_auc += roc_data[2][i]
+                    fig.add_scatter(
+                        x=roc_data[0][i],
+                        y=roc_data[1][i],
+                        name=f'Class {i} (AUC = {roc_data[2][i]:.2f})',
+                        mode='lines'
+                    )
+                fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
+                fig.update_layout(
+                    xaxis_title='False Positive Rate',
+                    yaxis_title='True Positive Rate',
+                    showlegend=True
+                )
+                avg_auc /= len(roc_data[2])
+                st.plotly_chart(fig)
                 st.markdown(f"**Average AUC:** {avg_auc:.2f}")
             else:
                 fpr, tpr, roc_auc = roc_data
-                fig = px.area(x=fpr, y=tpr, title=f'ROC Curve (AUC = {roc_auc:.2f})',
-                              labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'})
+                fig = px.area(
+                    x=fpr,
+                    y=tpr,
+                    title=f'ROC Curve (AUC = {roc_auc:.2f})',
+                    labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'}
+                )
                 fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
                 st.plotly_chart(fig)
 
     def show_interpretation(self, model):
-        """Show model interpretation using built-in feature importance/coefficients"""
         try:
             classifier = model.named_steps['classifier']
             preprocessor = model.named_steps['preprocessor']
-
-            # Get feature names after preprocessing
             feature_names = preprocessor.get_feature_names_out()
 
-            # Tree-based feature importance
             if hasattr(classifier, 'feature_importances_'):
                 importances = classifier.feature_importances_
                 df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
                 df = df.sort_values('Importance', ascending=False).head(20)
-
                 fig = px.bar(df, x='Importance', y='Feature',
-                             title='Feature Importance',
-                             orientation='h')
+                             title='Feature Importance', orientation='h')
                 st.plotly_chart(fig)
 
-            # Linear model coefficients
             elif hasattr(classifier, 'coef_'):
                 coefs = classifier.coef_[0]
                 df = pd.DataFrame({'Feature': feature_names, 'Coefficient': coefs})
                 df['Absolute'] = np.abs(df['Coefficient'])
                 df = df.sort_values('Absolute', ascending=False).head(20)
-
                 fig = px.bar(df, x='Coefficient', y='Feature',
-                             title='Feature Coefficients',
-                             orientation='h',
-                             color='Coefficient',
-                             color_continuous_scale='RdBu')
+                             title='Feature Coefficients', orientation='h',
+                             color='Coefficient', color_continuous_scale='RdBu')
                 st.plotly_chart(fig)
 
             else:
@@ -426,7 +383,6 @@ class AutoMLClassifier:
     def load_model(path):
         return joblib.load(path)
 
-
 DATASETS = {
     "Breast Cancer": load_breast_cancer,
     "Iris": load_iris,
@@ -434,7 +390,6 @@ DATASETS = {
     "Digits": load_digits,
     "Forest Covertypes": fetch_covtype
 }
-
 
 def load_dataset(dataset_name):
     loader = DATASETS[dataset_name]()
@@ -450,7 +405,6 @@ def load_dataset(dataset_name):
         y = y.map(dict(enumerate(loader.target_names)))
 
     return X, y, loader.DESCR.split('\n')[0] if hasattr(loader, 'DESCR') else ""
-
 
 def main():
     st.set_page_config(page_title="AutoML Classification", page_icon="🤖", layout="wide")
@@ -505,15 +459,8 @@ def main():
         max_cardinality = st.slider("Max Cardinality", 10, 1000, 50)
         max_correlation = st.slider("Max Correlation Threshold", 0.7, 1.0, 0.95)
 
-        st.subheader("Feature Engineering")
-        feature_engineering_options = {
-            'polynomial': st.checkbox("Polynomial Features (degree=2)"),
-            'pca': st.checkbox("PCA Dimensionality Reduction")
-        }
-
         st.subheader("Advanced Options")
         cv_folds = st.slider("Cross-Validation Folds", 3, 10, 5)
-        shap_enabled = st.checkbox("Enable SHAP Explanations", False)
         timeout = st.number_input("Max Training Time per Model (minutes)", 1, 60, 10)
 
         st.subheader("Class Imbalance Handling")
@@ -702,25 +649,35 @@ def main():
             st.subheader("ROC Curve for Best Model")
             roc_data = automl.results[automl.best_model]['roc_curve']
             if isinstance(roc_data[2], dict):
-                fig, ax = plt.subplots()
+                fig = px.line(title='Multiclass ROC Curves')
+                avg_auc = 0
                 for i in roc_data[2]:
-                    ax.plot(roc_data[0][i], roc_data[1][i], label=f'Class {i} (AUC = {roc_data[2][i]:.2f})')
-                ax.plot([0, 1], [0, 1], 'k--')
-                ax.set_xlabel('False Positive Rate')
-                ax.set_ylabel('True Positive Rate')
-                ax.legend(loc='lower right')
-                st.pyplot(fig)
-                avg_auc = np.mean(list(roc_data[2].values()))
+                    avg_auc += roc_data[2][i]
+                    fig.add_scatter(
+                        x=roc_data[0][i],
+                        y=roc_data[1][i],
+                        name=f'Class {i} (AUC = {roc_data[2][i]:.2f})',
+                        mode='lines'
+                    )
+                fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
+                fig.update_layout(
+                    xaxis_title='False Positive Rate',
+                    yaxis_title='True Positive Rate',
+                    showlegend=True
+                )
+                avg_auc /= len(roc_data[2])
+                st.plotly_chart(fig)
                 st.markdown(f"**Average AUC:** {avg_auc:.2f}")
             else:
                 fpr, tpr, roc_auc = roc_data
-                fig = px.area(x=fpr, y=tpr, title=f'ROC Curve (AUC = {roc_auc:.2f})',
-                              labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'})
+                fig = px.area(
+                    x=fpr,
+                    y=tpr,
+                    title=f'ROC Curve (AUC = {roc_auc:.2f})',
+                    labels={'x': 'False Positive Rate', 'y': 'True Positive Rate'}
+                )
                 fig.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
                 st.plotly_chart(fig)
-
-        if st.session_state.get('show_results') and st.session_state.results:
-            automl = st.session_state.results
 
         st.subheader("Model Persistence")
         col1, col2 = st.columns(2)
@@ -753,7 +710,6 @@ def main():
                 st.write("Sample prediction:", prediction)
             except Exception as e:
                 st.error(f"Error loading model: {str(e)}")
-
 
 if __name__ == "__main__":
     main()
