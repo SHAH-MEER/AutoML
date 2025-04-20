@@ -100,7 +100,9 @@ automl.save_model("iris_classifier.pkl")
 ## 📬 Contact 📬
 
 [![Email](https://img.shields.io/badge/Email-shahmeershahzad67%40gmail.com-blue?style=flat-square&logo=gmail)](mailto:shahmeershahzad67@gmail.com) 📧
+---------
 [![GitHub](https://img.shields.io/badge/GitHub-SHAH--MEER-black?style=flat-square&logo=github)](https://github.com/SHAH-MEER) 🐙
+-----------
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Shahmeer%20Shahzad-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/shahmeer-shahzad-790b67356/) 👔
 
 ## 📜 License 📜
