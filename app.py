@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="AutoML Suite",
+    page_title="AutoML Web App",
     page_icon="🤖",
     layout="wide"
 )
@@ -36,9 +36,9 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("🤖 AutoML Suite")
+st.title("🤖 AutoML Web App")
 st.markdown("""
-Welcome to AutoML Suite - Your one-stop solution for automated machine learning!
+Welcome to AutoML Web App - Your one-stop solution for automated machine learning!
 
 This application allows you to perform automated classification and regression tasks with ease.
 
