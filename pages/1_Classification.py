@@ -114,14 +114,11 @@ if st.session_state.classification_data_loaded:
     st.header("Data Preview")
     st.markdown(f"**Dataset Description:** {st.session_state.dataset_description}")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Features (X)")
-        st.dataframe(X.head())
-    
-    with col2:
-        st.subheader("Target (y)")
-        # Removed the plot from here
+    st.subheader("Features (X)")
+    st.dataframe(X.head())
+
+    st.subheader("Target (y)")
+    # Removed the plot from here
 
     # Re-add the plot below the columns
     st.subheader("Class Distribution") # Adding the header here

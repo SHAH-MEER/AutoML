@@ -9,6 +9,12 @@ from sklearn.feature_selection import mutual_info_regression, mutual_info_classi
 import joblib
 from io import BytesIO
 
+# Import unsupervised specific modules
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.manifold import TSNE
+from sklearn.metrics import silhouette_score # A common metric for clustering evaluation
+
 class BaseAutoML:
     def __init__(self, models=None, test_size=0.2, max_cardinality=50,
                  max_correlation=0.95, random_state=42):
@@ -49,8 +55,14 @@ class BaseAutoML:
         if pd.api.types.is_numeric_dtype(y):
             correlations = X.corrwith(y, method='pearson').abs()
         else:
-            mi = mutual_info_classif(X, y, random_state=self.random_state)
-            correlations = pd.Series(mi, index=X.columns)
+            # For unsupervised, y might be None or labels, so use mutual_info_classif if y is not None
+            if y is not None:
+                 mi = mutual_info_classif(X, y, random_state=self.random_state)
+                 correlations = pd.Series(mi, index=X.columns)
+            else:
+                 # If no target, cannot calculate correlation with target, skip leaky feature detection
+                 correlations = pd.Series(0, index=X.columns) # Assign 0 correlation if no target
+
         leaky_features = correlations[correlations > self.max_correlation].index.tolist()
         self.feature_report['leaky_features'] = leaky_features
         X = X.drop(columns=leaky_features)
@@ -74,23 +86,30 @@ class BaseAutoML:
             ('onehot', OneHotEncoder(handle_unknown='ignore'))
         ])
 
-        preprocessor = ColumnTransformer(transformers=[
-            ('num', numeric_transformer, numeric_features),
-            ('cat', categorical_transformer, categorical_features)
-        ])
+        transformers = []
+        if numeric_features:
+            transformers.append(('num', numeric_transformer, numeric_features))
+        if categorical_features:
+             transformers.append(('cat', categorical_transformer, categorical_features))
+
+        preprocessor = ColumnTransformer(transformers=transformers)
 
         return preprocessor
 
     def _validate_data(self, X, y):
-        if y.isnull().any():
+        if y is not None and y.isnull().any():
+            # For unsupervised, allow None y, but check for nulls if y is provided
             raise ValueError("Target variable contains missing values")
 
         numeric_cols = X.select_dtypes(include=np.number).columns
-        low_variance = X[numeric_cols].var() < 1e-6
-        if low_variance.any():
-            print(f"Warning: Low variance features detected: {list(low_variance.index[low_variance])}")
+        if not numeric_cols.empty:
+            low_variance = X[numeric_cols].var() < 1e-6
+            if low_variance.any():
+                print(f"Warning: Low variance features detected: {list(low_variance.index[low_variance])}")
 
     def save_model(self, output_path):
+        # This method is primarily for supervised models. Unsupervised results might be different.
+        # We can adjust this or create a separate save method for unsupervised results.
         if isinstance(output_path, BytesIO):
             joblib.dump(self.final_model, output_path)
         else:
@@ -120,7 +139,7 @@ class AutoMLClassifier(BaseAutoML):
             self.label_encoder = le
 
         if len(np.unique(y)) < 2:
-            raise ValueError("Target variable must have at least two classes")
+            raise ValueError("Target variable must have at least two classes for classification")
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=self.test_size, random_state=self.random_state, stratify=y
@@ -148,18 +167,20 @@ class AutoMLClassifier(BaseAutoML):
                     y_pred = full_pipeline.predict(X_test)
                     y_proba = full_pipeline.predict_proba(X_test) if hasattr(model, 'predict_proba') else None
 
-                    from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+                    from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
                     results = {
                         'accuracy': accuracy_score(y_test, y_pred),
                         'classification_report': classification_report(y_test, y_pred, output_dict=True),
                         'confusion_matrix': confusion_matrix(y_test, y_pred),
                         'y_test': y_test,
                         'y_pred': y_pred,
-                        'y_proba': y_proba
+                        'y_proba': y_proba,
+                        'f1_weighted': f1_score(y_test, y_pred, average='weighted')
                     }
 
                     self.results[name] = results
 
+                    # For classification, best score is typically accuracy or F1
                     if results['accuracy'] > self.best_score:
                         self.best_model = name
                         self.best_score = results['accuracy']
@@ -178,6 +199,8 @@ class AutoMLRegressor(BaseAutoML):
     def __init__(self, models=None, test_size=0.2, max_cardinality=50,
                  max_correlation=0.95, random_state=42):
         super().__init__(models, test_size, max_cardinality, max_correlation, random_state)
+        # For regression, best score is typically R2, higher is better
+        self.best_score = float('-inf')
 
     def preprocess_data(self, X, y):
         X = X.copy()
@@ -223,6 +246,7 @@ class AutoMLRegressor(BaseAutoML):
 
                     self.results[name] = results
 
+                    # For regression, best score is R2
                     if results['r2_score'] > self.best_score:
                         self.best_model = name
                         self.best_score = results['r2_score']
@@ -232,6 +256,111 @@ class AutoMLRegressor(BaseAutoML):
                     print(f"Error training {name}: {str(e)}")
 
             return self.final_model
+
+        except ValueError as e:
+            print(f"Data validation error: {str(e)}")
+            raise
+
+class AutoMLUnsupervised(BaseAutoML):
+    def __init__(self, algorithms=None, max_cardinality=50,
+                 max_correlation=0.95, random_state=42):
+        # Unsupervised learning typically doesn't use test_size or the same kind of 'models'
+        super().__init__(models=None, test_size=0, max_cardinality=max_cardinality, max_correlation=max_correlation, random_state=random_state)
+        self.algorithms = algorithms or [
+            # Default unsupervised algorithms - we can add parameters later on the Streamlit page
+            ('KMeans', KMeans(random_state=random_state, n_init=10)),
+            ('DBSCAN', DBSCAN()),
+            ('PCA', PCA(random_state=random_state)),
+            ('TSNE', TSNE(random_state=random_state, n_components=2, learning_rate='auto', init='random'))
+        ]
+        # For unsupervised, we store results per algorithm run
+        self.results = {}
+        # There isn't a single 'best_model' in the same way as supervised learning
+        self.best_model = None # or maybe track algorithm with best silhouette score if clustering
+        self.best_score = None
+        self.final_model = None # Could store a pipeline if needed
+
+    def preprocess_data(self, X, y=None):
+        # Unsupervised preprocessing might be simpler, often just scaling
+        X = X.copy()
+        # Feature analysis can still be useful
+        X = self._feature_analysis(X, y) # Pass y so leaky feature analysis can be skipped if y is None
+
+        # Create preprocessing pipeline - similar to supervised but without target handling
+        preprocessor = self.create_preprocessing_pipeline(X)
+
+        return preprocessor.fit_transform(X)
+
+    def run_algorithms(self, X, y=None):
+        # X here is the preprocessed data
+        self.results = {}
+        for name, algorithm in self.algorithms:
+            try:
+                print(f"Running {name}...")
+                # Apply the algorithm
+                if name == 'KMeans':
+                    # KMeans expects n_clusters, let's add a placeholder or default
+                    # The actual parameter control will be on the Streamlit page
+                    algorithm.n_clusters = getattr(self, 'kmeans_n_clusters', 8) # Example default
+                    labels = algorithm.fit_predict(X)
+                    score = silhouette_score(X, labels) if len(np.unique(labels)) > 1 else None
+                    self.results[name] = {'labels': labels, 'silhouette_score': score}
+                elif name == 'DBSCAN':
+                     # DBSCAN parameters need to be exposed on the Streamlit page
+                     # Example defaults:
+                     algorithm.eps = getattr(self, 'dbscan_eps', 0.5)
+                     algorithm.min_samples = getattr(self, 'dbscan_min_samples', 5)
+                     labels = algorithm.fit_predict(X)
+                     # Silhouette score for DBSCAN can be tricky with noise points (-1)
+                     core_samples_mask = np.zeros_like(labels, dtype=bool)
+                     if hasattr(algorithm, 'core_sample_indices_'):
+                        core_samples_mask[algorithm.core_sample_indices_] = True
+                     unique_labels = set(labels)
+                     if -1 in unique_labels: # Don't include noise points in silhouette calculation
+                         unique_labels.remove(-1)
+
+                     if len(unique_labels) > 1:
+                          score = silhouette_score(X[labels != -1], labels[labels != -1])
+                     else:
+                          score = None
+                     self.results[name] = {'labels': labels, 'silhouette_score': score}
+
+                elif name == 'PCA':
+                    # PCA expects n_components, exposed on the Streamlit page
+                    algorithm.n_components = getattr(self, 'pca_n_components', min(X.shape[0], X.shape[1]))
+                    transformed_data = algorithm.fit_transform(X)
+                    explained_variance = algorithm.explained_variance_ratio_
+                    self.results[name] = {'transformed_data': transformed_data, 'explained_variance_ratio': explained_variance}
+                elif name == 'TSNE':
+                     # t-SNE is primarily for visualization, typically 2 or 3 components
+                     # Parameters like n_components and perplexity on the Streamlit page
+                     # t-SNE does not have a fit_predict method for clustering labels directly
+                     # It learns a low-dimensional representation
+                     algorithm.n_components = getattr(self, 'tsne_n_components', 2) # Default to 2 for easy visualization
+                     algorithm.perplexity = getattr(self, 'tsne_perplexity', 30)
+                     algorithm.init = getattr(self, 'tsne_init', 'random')
+
+                     # TSNE does not handle missing values or non-finite values
+                     # The preprocessor should handle this, but double check
+
+                     transformed_data = algorithm.fit_transform(X)
+                     self.results[name] = {'transformed_data': transformed_data}
+
+                # Add other unsupervised algorithms here
+
+            except Exception as e:
+                print(f"Error running {name}: {str(e)}")
+                self.results[name] = {'error': str(e)}
+
+        return self.results
+
+    def run(self, X, y=None):
+        # This is the main method to call from the Streamlit page
+        try:
+            self._validate_data(X, y)
+            X_processed = self.preprocess_data(X, y)
+            unsupervised_results = self.run_algorithms(X_processed, y)
+            return unsupervised_results
 
         except ValueError as e:
             print(f"Data validation error: {str(e)}")
