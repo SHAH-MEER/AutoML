@@ -1,139 +1,115 @@
-# 🤖 AutoML Classification Web App 🔬
+# 🤖 AutoML Web App 📊📈
 
-A powerful and intuitive web application for automated machine learning classification built with Streamlit and scikit-learn. ✨
+A powerful and intuitive Streamlit web application for automated machine learning, supporting both **Classification** and **Regression** tasks. ✨
 
 ## ✨ Features ✨
 
-- 📊 **Built-in Datasets**: Load popular scikit-learn datasets with a single click 🖱️
-- 📁 **Custom Data Upload**: Support for CSV and Excel file formats 📑
-- 🧠 **Multiple Algorithms**: Random Forest 🌲, Gradient Boosting 📈, Logistic Regression 📉, SVM 🔄, KNN 🔍, Decision Tree 🌳, AdaBoost 🚀, and Naive Bayes 🎲
-- 🔍 **Feature Analysis**: Automatic detection of high cardinality features, leaky features, and datetime features 🕒
-- ⚖️ **Class Imbalance Handling**: SMOTE, ADASYN, and UnderSampling techniques 📊
-- 📈 **Comprehensive Visualization**: Model comparison 📊, confusion matrices 🔢, ROC curves 📉, and feature importance 🏆
-- 💾 **Model Persistence**: Save and load trained models for future use 🔄
-- ⚙️ **Customizable Parameters**: Adjust test size, random state, cross-validation folds, and more ⚙️
-- 🚀 **Fast Mode**: Quick training option for rapid prototyping ⚡
-- 🔄 **Cross-validation**: Configurable k-fold cross-validation for robust evaluation 🎯
+- 📊 **Classification Analysis**: Automated classification on built-in or custom datasets.
+- 📈 **Regression Analysis**: Automated regression on built-in or custom datasets.
+- 📁 **Built-in Datasets**: Load popular scikit-learn datasets for both tasks with a single click 🖱️ (Iris, Wine, Breast Cancer, Digits, Forest Covertypes for Classification; Diabetes, California Housing for Regression).
+- 📑 **Custom Data Upload**: Support for CSV and Excel file formats.
+- 🧠 **Multiple Algorithms**: Access a range of algorithms for each task type (e.g., Random Forest, Gradient Boosting, Logistic Regression, SVM, KNN, Decision Tree, AdaBoost, Naive Bayes for Classification; Linear Regression, SVR, Elastic Net, RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor, KNeighborsRegressor, DecisionTreeRegressor for Regression).
+- 🔍 **Feature Analysis**: Automatic detection of high cardinality features, potential leaky features, and datetime features 🕒.
+- ⚖️ **Class Imbalance Handling**: SMOTE and other techniques available for classification tasks 📊.
+- 📊📈 **Comprehensive Visualization**: Model comparison, confusion matrices, ROC curves, feature importance for classification; R² Score, MSE, MAE, Residuals Plot, Prediction vs Actual Plot, Feature Importance for regression.
+- 💾 **Model Persistence**: Save and load trained models for future use 🔄.
+- ⚙️ **Customizable Parameters**: Adjust test size, random state, cross-validation folds (for classification), and more.
 
 ## 🚀 Quick Start 🚀
 
 1. Clone the repository 📥
+   ```bash
+   git clone <repository_url>
+   cd AutoML
    ```
-   git clone https://github.com/SHAH-MEER/automl-classification-app.git
-   cd automl-classification-app
-   ```
+   (Replace `<repository_url>` with your actual repository URL if you have one.)
+
 2. Install dependencies 🔧
-   ```
+   ```bash
    pip install -r requirements.txt
    ```
+
 3. Run the app 🏃‍♂️
-   ```
+   ```bash
    streamlit run app.py
    ```
-4. Access the app in your browser at: `http://localhost:8501` 🌐
+
+4. Access the app in your web browser at: `http://localhost:8501` 🌐
 
 ## 📋 Requirements 📋
 
 - Python 3.7+ 🐍
-- pandas 🐼
-- numpy 🔢
-- matplotlib 📊
-- seaborn 📈
-- plotly 📉
-- scikit-learn 🧠
-- imbalanced-learn ⚖️
-- streamlit 🖥️
-- joblib 💾
+- `streamlit`
+- `pandas`
+- `numpy`
+- `scikit-learn`
+- `matplotlib`
+- `seaborn`
+- `plotly`
+- `joblib`
+- `imbalanced-learn` (for classification imbalance handling)
+- `openpyxl` (for Excel file support)
+
+See `requirements.txt` for specific versions.
 
 ## 🛠️ Usage 🛠️
 
-1. Choose a built-in dataset or upload your own data 📁
-2. Configure parameters in the sidebar ⚙️
-3. Select models to train 🧠
-4. Click "Run AutoML Analysis" 🚀
-5. Explore results and download the best model 📊
+1. Launch the app using the command in the Quick Start section.
+2. Navigate to either the "Classification" or "Regression" page using the sidebar on the left.
+3. On the chosen task page, select a built-in dataset or upload your own data.
+4. Configure parameters in the sidebar, including data split, model settings, and feature handling.
+5. Select the models you wish to train for the chosen task.
+6. Click the "Run Analysis" button (e.g., "Run Classification Analysis" or "Run Regression Analysis") to train and evaluate the selected models.
+7. Explore the results through tables and interactive visualizations.
+8. Use the Model Persistence section to download or load trained models.
 
-## 🔧 Advanced Configuration 🔧
+## 📂 Project Structure 📂
 
-- **Test Size** 📏: Adjust the train/test split ratio
-- **Random State** 🎲: Set seed for reproducible results
-- **Class Imbalance** ⚖️: Toggle handling of imbalanced datasets
-- **Max Cardinality** 🔢: Configure threshold for high cardinality features
-- **Max Correlation** 📊: Set threshold for identifying leaky features
-- **CV Folds** 📂: Customize number of cross-validation folds
-- **Max Training Time** ⏱️: Limit training time per model
-- **Hyperparameter Iterations** 🔄: Set number of search iterations
-- **Feature Selection** 🔍: Enable automatic feature selection
-
-## 📊 Output 📊
-
-- Model performance comparison 📈
-- Feature importance analysis 🏆
-- Confusion matrices 🔢
-- ROC curves 📉
-- Classification reports 📝
-- Downloadable trained model 💾
-- Performance metrics visualization 📊
-
-## 💻 Example Code 💻
-
-```python
-# Load a dataset 📁
-from sklearn.datasets import load_iris
-X, y = load_iris(return_X_y=True)
-
-# Train models 🧠
-automl = AutoMLClassifier(
-    models=[('Random Forest', RandomForestClassifier())],
-    test_size=0.2,
-    random_state=42
-)
-best_model = automl.fit(X, y)
-
-# Make predictions 🔮
-predictions = best_model.predict(X_test)
-
-# Save the model 💾
-automl.save_model("iris_classifier.pkl")
-```
+-   `app.py`: The main entry point and home page, providing an overview and directing users to task pages.
+-   `pages/`: Directory containing the Streamlit pages for specific tasks.
+    -   `1_Classification.py`: Code for the Classification analysis page.
+    -   `2_Regression.py`: Code for the Regression analysis page.
+-   `utils/`: Directory for shared helper code.
+    -   `automl.py`: Contains the `BaseAutoML` class and task-specific subclasses (`AutoMLClassifier`, `AutoMLRegressor`).
+-   `requirements.txt`: Lists the project dependencies.
+-   `README.md`: Project documentation.
 
 ## 📬 Contact 📬
 
 [![Email](https://img.shields.io/badge/Email-shahmeershahzad67%40gmail.com-blue?style=flat-square&logo=gmail)](mailto:shahmeershahzad67@gmail.com) 📧
----------
+--------- 
 [![GitHub](https://img.shields.io/badge/GitHub-SHAH--MEER-black?style=flat-square&logo=github)](https://github.com/SHAH-MEER) 🐙
------------
+----------- 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Shahmeer%20Shahzad-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/shahmeer-shahzad-790b67356/) 👔
 
 ## 📜 License 📜
 
-This project is licensed under the MIT License - ⚖️
+This project is licensed under the MIT License - see the LICENSE file for details (if you have one). ⚖️
 
 ## 🤝 Contributing 🤝
 
 Contributions are welcome! Please feel free to submit a Pull Request. 🙌
 
 1. Fork the repository 🍴
-2. Create your feature branch (`git checkout -b feature/amazing-feature`) 🌿
-3. Commit your changes (`git commit -m 'Add some amazing feature'`) 💬
-4. Push to the branch (`git push origin feature/amazing-feature`) 🚀
-5. Open a Pull Request 📝
+2. Create your feature branch (`git checkout -b feature/your-feature-name`) 🌿
+3. Commit your changes (`git commit -m 'Add your feature'`) 💬
+4. Push to the branch (`git push origin feature/your-feature-name`) 🚀
+5. Open a Pull Request on GitHub 📝
 
 ## 🙏 Acknowledgements 🙏
 
-- [scikit-learn](https://scikit-learn.org/) for machine learning algorithms 🧠
-- [Streamlit](https://streamlit.io/) for the web application framework 🖥️
-- [imbalanced-learn](https://imbalanced-learn.org/) for handling class imbalance ⚖️
-- [Plotly](https://plotly.com/) for interactive visualizations 📊
-- [Pandas](https://pandas.pydata.org/) for data manipulation 🐼
+- [scikit-learn](https://scikit-learn.org/) for machine learning algorithms 🧠.
+- [Streamlit](https://streamlit.io/) for the web application framework 🖥️.
+- [imbalanced-learn](https://imbalanced-learn.org/) for handling class imbalance (Classification) ⚖️.
+- [Plotly](https://plotly.com/) for interactive visualizations 📊📈.
+- [Pandas](https://pandas.pydata.org/) for data manipulation 🐼.
 
 ## 🌟 What's Next 🌟
 
-- Time series forecasting support 📅
-- Natural language processing features 📝
-- Integration with more data sources 🌐
-- Automated report generation 📄
-- Model interpretability tools 🔍
+- Adding more advanced models for both tasks.
+- Implementing feature selection and engineering options.
+- Improving visualization capabilities.
+- Exploring time series and NLP task support.
 
 ---
 
