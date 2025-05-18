@@ -186,8 +186,8 @@ if st.session_state.classification_data_loaded:
             cm_data = automl.results[automl.best_model]['confusion_matrix']
             st.dataframe(pd.DataFrame(
                 cm_data,
-                index=[f"True {i}" for i in range(cm_data.shape[0])],
-                columns=[f"Pred {i}" for i in range(cm_data.shape[1])]
+                index=[f"True {i}" for i in range(len(cm_data))],
+                columns=[f"Pred {i}" for i in range(len(cm_data[0]))]
             ))
             
             # Classification Report
