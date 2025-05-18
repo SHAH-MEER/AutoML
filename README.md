@@ -19,11 +19,8 @@ A powerful and intuitive Streamlit web application for automated machine learnin
 
 1. Clone the repository 📥
    ```bash
-   git clone <repository_url>
+   git clone <https://github.com/SHAH-MEER/AutoML>
    cd AutoML
-   ```
-   (Replace `<repository_url>` with your actual repository URL if you have one.)
-
 2. Install dependencies 🔧
    ```bash
    pip install -r requirements.txt
@@ -95,14 +92,6 @@ Contributions are welcome! Please feel free to submit a Pull Request. 🙌
 3. Commit your changes (`git commit -m 'Add your feature'`) 💬
 4. Push to the branch (`git push origin feature/your-feature-name`) 🚀
 5. Open a Pull Request on GitHub 📝
-
-## 🙏 Acknowledgements 🙏
-
-- [scikit-learn](https://scikit-learn.org/) for machine learning algorithms 🧠.
-- [Streamlit](https://streamlit.io/) for the web application framework 🖥️.
-- [imbalanced-learn](https://imbalanced-learn.org/) for handling class imbalance (Classification) ⚖️.
-- [Plotly](https://plotly.com/) for interactive visualizations 📊📈.
-- [Pandas](https://pandas.pydata.org/) for data manipulation 🐼.
 
 ## 🌟 What's Next 🌟
 
